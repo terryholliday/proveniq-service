@@ -4,13 +4,15 @@ import crypto from "crypto";
 import { ServiceRecordSchema } from "@/shared/contracts/src";
 import { canonicalize, stripSig, hash256Hex, verifyEd25519 } from "@/shared/crypto/src";
 import { MockLedgerClient } from "@/shared/ledger-client/src/mock";
+import { LiveLedgerClient } from "@/shared/ledger-client/src/live";
 import { validateProviderLicense } from "@/logic/licenseCheck";
 // import { ProviderRegistry } from "@/logic/providerRegistry"; // Registry needs adaptation if it's not a simple export
 
 // Stubbing ProviderRegistry locally if needed or importing from adapted logic
 import { ProviderRegistry } from "@/logic/providerRegistry";
 
-const ledger = new MockLedgerClient();
+const USE_REAL_LEDGER = process.env.USE_REAL_LEDGER === "true";
+const ledger = USE_REAL_LEDGER ? new LiveLedgerClient() : new MockLedgerClient();
 
 export async function POST(req: NextRequest) {
     try {
