@@ -1,5 +1,15 @@
+import {
+    CustodyTokenWire,
+    DeliveryReceiptWire,
+    HandoffAcceptanceWire,
+    HandoffChallengeWire,
+    PricingContextWire,
+    QuoteRequestWire,
+    QuoteResponseWire,
+    ServiceRecordWire,
+    PolicyBindRequestWire,
+} from "@/shared/contracts/src";
 import { IntString } from "@/shared/contracts/src";
-import { ServiceRecordWire } from "@/shared/contracts/src";
 
 export type LedgerEvent =
     | {
@@ -12,10 +22,49 @@ export type LedgerEvent =
         schema_version: "1.0.0";
     }
     | {
+        type: "TRANSIT_CUSTODY_TOKEN_ISSUED";
+        asset_id: string;
+        custody_token_id: string;
+        payload: CustodyTokenWire;
+        correlation_id: string;
+        idempotency_key: string;
+        created_at: string;
+        schema_version: "1.0.0";
+    }
+    | {
+        type: "TRANSIT_HANDOFF_CHALLENGED";
+        asset_id: string;
+        custody_token_id: string;
+        payload: HandoffChallengeWire;
+        correlation_id: string;
+        idempotency_key: string;
+        created_at: string;
+        schema_version: "1.0.0";
+    }
+    | {
         type: "TRANSIT_HANDOFF_COMPLETED";
         asset_id: string;
         custody_token_id: string;
-        payload: any;
+        payload: HandoffAcceptanceWire;
+        correlation_id: string;
+        idempotency_key: string;
+        created_at: string;
+        schema_version: "1.0.0";
+    }
+    | {
+        type: "TRANSIT_DELIVERY_RECORDED";
+        asset_id: string;
+        custody_token_id: string;
+        payload: DeliveryReceiptWire;
+        correlation_id: string;
+        idempotency_key: string;
+        created_at: string;
+        schema_version: "1.0.0";
+    }
+    | {
+        type: "PROTECT_PRICING_CONTEXT_RECORDED";
+        asset_id: string;
+        payload: PricingContextWire;
         correlation_id: string;
         idempotency_key: string;
         created_at: string;
@@ -24,7 +73,10 @@ export type LedgerEvent =
     | {
         type: "PROTECT_QUOTE_CREATED";
         asset_id: string;
-        payload: any;
+        payload: {
+            request: QuoteRequestWire;
+            response: QuoteResponseWire;
+        };
         correlation_id: string;
         idempotency_key: string;
         created_at: string;
@@ -33,7 +85,10 @@ export type LedgerEvent =
     | {
         type: "POLICY_BOUND";
         asset_id: string;
-        payload: any;
+        payload: {
+            request: PolicyBindRequestWire;
+            quote: QuoteResponseWire;
+        };
         correlation_id: string;
         idempotency_key: string;
         created_at: string;
