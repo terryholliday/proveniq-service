@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Service Provider / Vendor
+model Provider {
+  id              String   @id @default(uuid())
+  providerId      String   @unique @map("provider_id")
+  
+  // Business info
+  businessName    String   @map("business_name")
+  businessType    ProviderType @map("business_type")
+  contactName     String?  @map("contact_name")
+  contactEmail    String   @map("contact_email")
+  contactPhone    String?  @map("contact_phone")
+  
+  // Location
+  serviceArea     Json?    @map("service_area") // GeoJSON or zip codes
+  address         String?
+  city            String?
+  state           String?
+  zip             String?
+  
+  // Credentials
+  publicKeyPem    String   @map("public_key_pem") @db.Text
+  licenses        License[]
+  insuranceVerified Boolean @default(false) @map("insurance_verified")
+  backgroundChecked Boolean @default(false) @map("background_checked")
+  
+  // Status
+  status          ProviderStatus @default(PENDING)
+  rating          Float?   @default(0)
+  reviewCount     Int      @default(0) @map("review_count")
+  completedJobs   Int      @default(0) @map("completed_jobs")
+  
+  // Capabilities
+  serviceDomains  String[] @map("service_domains") // AUTOMOTIVE, RESIDENTIAL, MARINE, AVIATION
+  serviceTypes    String[] @map("service_types")   // MAINTENANCE, REPAIR, UPGRADE, INSPECTION
+  
+  // Pricing
+  hourlyRateCents Int?     @map("hourly_rate_cents")
+  minimumFeeCents Int?     @map("minimum_fee_cents")
+  
+  // Metadata
+  metadata        Json?
+  
+  // Relations
+  workOrders      WorkOrder[]
+  reviews         Review[]
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  @@map("providers")
+}
+
+enum ProviderType {
+  INDIVIDUAL
+  COMPANY
+  FRANCHISE
+}
+
+enum ProviderStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+// Provider Licenses
+model License {
+  id              String   @id @default(uuid())
+  providerId      String   @map("provider_id")
+  provider        Provider @relation(fields: [providerId], references: [id])
+  
+  licenseType     String   @map("license_type") // ASE_MASTER, LICENSED_PLUMBER, etc.
+  licenseNumber   String?  @map("license_number")
+  issuingAuthority String? @map("issuing_authority")
+  issuedAt        DateTime? @map("issued_at")
+  expiresAt       DateTime? @map("expires_at")
+  verified        Boolean  @default(false)
+  verifiedAt      DateTime? @map("verified_at")
+  documentUrl     String?  @map("document_url")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  @@map("licenses")
+}
+
+// Work Order
+model WorkOrder {
+  id              String   @id @default(uuid())
+  workOrderNumber String   @unique @map("work_order_number")
+  
+  // Requestor
+  requestorType   String   @map("requestor_type") // properties, home, ops
+  requestorId     String   @map("requestor_id")   // Org ID or User ID
+  requestorRef    String?  @map("requestor_ref")  // Maintenance ticket ID, etc.
+  
+  // Asset
+  assetId         String   @map("asset_id")
+  assetType       String   @map("asset_type")     // AUTOMOTIVE, RESIDENTIAL, etc.
+  assetDescription String? @map("asset_description")
+  anchorId        String?  @map("anchor_id")
+  
+  // Location
+  serviceAddress  String?  @map("service_address")
+  serviceCity     String?  @map("service_city")
+  serviceState    String?  @map("service_state")
+  serviceZip      String?  @map("service_zip")
+  serviceGeo      Json?    @map("service_geo")
+  
+  // Service details
+  serviceDomain   String   @map("service_domain") // AUTOMOTIVE, RESIDENTIAL, etc.
+  serviceType     String   @map("service_type")   // MAINTENANCE, REPAIR, etc.
+  description     String   @db.Text
+  urgency         Urgency  @default(NORMAL)
+  
+  // Assignment
+  providerId      String?  @map("provider_id")
+  provider        Provider? @relation(fields: [providerId], references: [id])
+  assignedAt      DateTime? @map("assigned_at")
+  
+  // Scheduling
+  preferredDates  Json?    @map("preferred_dates")
+  scheduledStart  DateTime? @map("scheduled_start")
+  scheduledEnd    DateTime? @map("scheduled_end")
+  actualStart     DateTime? @map("actual_start")
+  actualEnd       DateTime? @map("actual_end")
+  
+  // Status
+  status          WorkOrderStatus @default(CREATED)
+  
+  // Pricing
+  estimatedCents  Int?     @map("estimated_cents")
+  finalCostCents  Int?     @map("final_cost_cents")
+  laborCents      Int?     @map("labor_cents")
+  partsCents      Int?     @map("parts_cents")
+  
+  // Evidence
+  beforeEvidence  Json?    @map("before_evidence")
+  afterEvidence   Json?    @map("after_evidence")
+  partsUsed       Json?    @map("parts_used")
+  workNotes       String?  @map("work_notes") @db.Text
+  
+  // Ledger
+  ledgerEventId   String?  @map("ledger_event_id")
+  
+  // Relations
+  events          WorkOrderEvent[]
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  @@map("work_orders")
+}
+
+enum Urgency {
+  LOW
+  NORMAL
+  HIGH
+  EMERGENCY
+}
+
+enum WorkOrderStatus {
+  CREATED
+  PENDING_ASSIGNMENT
+  ASSIGNED
+  SCHEDULED
+  IN_PROGRESS
+  PENDING_APPROVAL
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+// Work Order Events (audit trail)
+model WorkOrderEvent {
+  id              String   @id @default(uuid())
+  workOrderId     String   @map("work_order_id")
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id])
+  
+  eventType       String   @map("event_type")
+  description     String?
+  actorId         String?  @map("actor_id")
+  actorType       String?  @map("actor_type") // provider, requestor, system
+  payload         Json?
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  @@map("work_order_events")
+}
+
+// Provider Reviews
+model Review {
+  id              String   @id @default(uuid())
+  providerId      String   @map("provider_id")
+  provider        Provider @relation(fields: [providerId], references: [id])
+  workOrderId     String?  @map("work_order_id")
+  
+  reviewerId      String   @map("reviewer_id")
+  reviewerType    String   @map("reviewer_type") // tenant, landlord, owner
+  
+  rating          Int      // 1-5
+  title           String?
+  comment         String?  @db.Text
+  
+  // Breakdown
+  qualityRating   Int?     @map("quality_rating")
+  timelinessRating Int?    @map("timeliness_rating")
+  communicationRating Int? @map("communication_rating")
+  valueRating     Int?     @map("value_rating")
+  
+  verified        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  @@map("reviews")
+}
+
+// Audit Log
+model AuditLog {
+  id              String   @id @default(uuid())
+  action          String
+  resourceType    String   @map("resource_type")
+  resourceId      String   @map("resource_id")
+  actorId         String?  @map("actor_id")
+  details         Json?
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  @@map("audit_log")
+}
