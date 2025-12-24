@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
       const licenseTypes = provider.licenses.map((l) => l.licenseType);
       if (!validateProviderLicense(input.service_domain, input.service_type, licenseTypes)) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: "Provider not licensed for this service",
           required_domain: input.service_domain,
           required_type: input.service_type,
@@ -102,26 +102,35 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Write to Ledger
+    // Write to Ledger (Standardized)
     try {
       const ledgerUrl = process.env.LEDGER_API_URL || "http://localhost:8006/api/v1";
+
+      const payloadData = {
+        work_order_id: workOrder.id,
+        work_order_number: workOrder.workOrderNumber,
+        service_domain: input.service_domain,
+        service_type: input.service_type,
+        requestor_type: input.requestor_type,
+        requestor_id: input.requestor_id,
+      };
+
+      // In a real implementation we would canonicalize and hash here too.
+      // For now, we ensure the envelope structure is correct.
+
       await fetch(`${ledgerUrl}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source: "service",
-          event_type: "SERVICE_WORK_ORDER_CREATED",
+          event_type: "SERVICE_WORK_ORDER_CREATED", // Confirmed Canonical
           asset_id: input.asset_id,
           anchor_id: input.anchor_id,
           correlation_id: crypto.randomUUID(),
-          payload: {
-            work_order_id: workOrder.id,
-            work_order_number: workOrder.workOrderNumber,
-            service_domain: input.service_domain,
-            service_type: input.service_type,
-            requestor_type: input.requestor_type,
-            requestor_id: input.requestor_id,
-          },
+          idempotency_key: `wo-create-${workOrder.id}`,
+          occurred_at: new Date().toISOString(),
+          schema_version: "1.0.0",
+          payload: payloadData // Ledger will hash if missing, or we should hash.
         }),
       });
     } catch (ledgerError) {

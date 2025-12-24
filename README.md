@@ -2,7 +2,21 @@
 
 **The Vendor Network — Licensed Service Marketplace**
 
-Connects asset owners with verified service providers. License validation, work order management, and provenance tracking.
+Connects asset owners with verified service providers via competitive bidding. License validation, work order management, and provenance tracking.
+
+## Service Flow
+
+```
+HOME (Owner Mode) ──┐
+                    ├──→ PROVENIQ Service ──→ Providers Bid ──→ Work Completed ──→ Ledger
+PROPERTIES ─────────┘
+
+HOME (Renter Mode) ──→ Routes to PROPERTIES ──→ Landlord's Vendor Pool ──→ Ledger
+```
+
+## Key Differentiator
+
+**Providers bid for work** — asset owners post repair needs, verified providers compete on price/availability. This is marketplace behavior, not a module.
 
 ## Architecture
 
