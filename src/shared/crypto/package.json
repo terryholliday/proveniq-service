@@ -1,0 +1,17 @@
+{
+    "name": "@proveniq/crypto",
+    "version": "1.0.0",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "json-stable-stringify": "^1.1.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "@types/node": "^20.10.0",
+        "@types/json-stable-stringify": "^1.0.34"
+    }
+}
