@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         const canonical_hash_hex = hash256Hex(canonical);
 
         const event = {
-            type: "SERVICE_RECORDED" as const,
+            type: "SERVICE_RECORD_CREATED" as const,
             asset_id: parsed.asset_id,
             payload: { ...parsed, canonical_hash_hex },
             correlation_id: parsed.correlation_id,

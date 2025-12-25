@@ -36,8 +36,8 @@ export async function POST(
       where: { id },
       data: {
         status: "COMPLETED",
-        completedAt: new Date(),
-        completionSummary: input.summary,
+        actualEnd: new Date(),
+        workNotes: input.summary,
       },
     });
 
@@ -74,7 +74,7 @@ export async function POST(
     return NextResponse.json({
       id: updated.id,
       status: updated.status,
-      completed_at: updated.completedAt,
+      completed_at: updated.actualEnd,
     });
 
   } catch (e: any) {
