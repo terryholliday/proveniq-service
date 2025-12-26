@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import prisma from "@/lib/db";
 import { validateProviderLicense } from "@/logic/licenseCheck";
+import { coreClient } from "@/lib/core-client";
 
 const CreateWorkOrderSchema = z.object({
   requestor_type: z.string(), // properties, home, ops
@@ -101,6 +102,17 @@ export async function POST(req: NextRequest) {
         payload: { service_domain: input.service_domain, service_type: input.service_type },
       },
     });
+
+    // P0: Get Core service history for asset
+    let serviceHistory = null;
+    try {
+      serviceHistory = await coreClient.getServiceHistory(input.asset_id);
+      if (serviceHistory) {
+        console.log(`[Core] Asset ${input.asset_id} has ${serviceHistory.totalServices} prior services`);
+      }
+    } catch (e) {
+      console.warn("[Core] Service history lookup unavailable");
+    }
 
     // Write to Ledger (Standardized)
     try {
