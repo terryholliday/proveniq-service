@@ -289,6 +289,99 @@ class CoreClient {
   }
 
   /**
+   * P2: Enhanced provider fraud scoring with claim pattern detection
+   * Detects fake service claims and inflated billing
+   */
+  async detectProviderFraudPatterns(
+    providerId: string,
+    recentClaims: Array<{
+      claimId: string;
+      amount: number;
+      serviceType: string;
+      completedAt: string;
+      customerDisputed: boolean;
+    }>
+  ): Promise<{
+    providerId: string;
+    fraudScore: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    patterns: Array<{
+      type: string;
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+    }>;
+    recommendation: 'ALLOW' | 'REVIEW' | 'SUSPEND' | 'TERMINATE';
+    suspiciousClaims: string[];
+  }> {
+    const patterns: Array<{ type: string; severity: 'low' | 'medium' | 'high'; description: string }> = [];
+    const suspiciousClaims: string[] = [];
+    let fraudScore = 20;
+
+    // Pattern 1: High dispute rate
+    const disputedClaims = recentClaims.filter(c => c.customerDisputed);
+    const disputeRate = recentClaims.length > 0 ? disputedClaims.length / recentClaims.length : 0;
+    if (disputeRate > 0.2) {
+      fraudScore += 30;
+      patterns.push({
+        type: 'HIGH_DISPUTE_RATE',
+        severity: 'high',
+        description: `${Math.round(disputeRate * 100)}% of claims disputed by customers`,
+      });
+      suspiciousClaims.push(...disputedClaims.map(c => c.claimId));
+    } else if (disputeRate > 0.1) {
+      fraudScore += 15;
+      patterns.push({
+        type: 'ELEVATED_DISPUTE_RATE',
+        severity: 'medium',
+        description: `${Math.round(disputeRate * 100)}% dispute rate above average`,
+      });
+    }
+
+    // Pattern 2: Rapid claim velocity
+    const last24hClaims = recentClaims.filter(c => {
+      const claimTime = new Date(c.completedAt).getTime();
+      return Date.now() - claimTime < 24 * 60 * 60 * 1000;
+    });
+    if (last24hClaims.length > 10) {
+      fraudScore += 25;
+      patterns.push({
+        type: 'RAPID_CLAIM_VELOCITY',
+        severity: 'high',
+        description: `${last24hClaims.length} claims in 24 hours - unusually high`,
+      });
+    }
+
+    // Pattern 3: Amount anomaly
+    const amounts = recentClaims.map(c => c.amount);
+    const avgAmount = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+    const highAmountClaims = recentClaims.filter(c => c.amount > avgAmount * 3);
+    if (highAmountClaims.length > 0) {
+      fraudScore += 15;
+      patterns.push({
+        type: 'AMOUNT_ANOMALY',
+        severity: 'medium',
+        description: `${highAmountClaims.length} claims significantly above average`,
+      });
+      suspiciousClaims.push(...highAmountClaims.map(c => c.claimId));
+    }
+
+    fraudScore = Math.min(fraudScore, 100);
+    const riskLevel = fraudScore < 30 ? 'LOW' : fraudScore < 60 ? 'MEDIUM' : fraudScore < 80 ? 'HIGH' : 'CRITICAL';
+    const recommendation = fraudScore < 30 ? 'ALLOW' : fraudScore < 60 ? 'REVIEW' : fraudScore < 80 ? 'SUSPEND' : 'TERMINATE';
+
+    console.log(`[Core] Provider fraud patterns: ${providerId} score=${fraudScore} patterns=${patterns.length}`);
+
+    return {
+      providerId,
+      fraudScore,
+      riskLevel,
+      patterns,
+      recommendation,
+      suspiciousClaims: [...new Set(suspiciousClaims)],
+    };
+  }
+
+  /**
    * Record service completion in Core (via Ledger)
    */
   async recordServiceCompletion(
