@@ -46,6 +46,12 @@ model Provider {
   hourlyRateCents Int?     @map("hourly_rate_cents")
   minimumFeeCents Int?     @map("minimum_fee_cents")
   
+  // Stripe Connect
+  stripeAccountId   String?  @map("stripe_account_id")
+  stripeOnboarded   Boolean  @default(false) @map("stripe_onboarded")
+  chargesEnabled    Boolean  @default(false) @map("charges_enabled")
+  payoutsEnabled    Boolean  @default(false) @map("payouts_enabled")
+  
   // Metadata
   metadata        Json?
   
@@ -142,6 +148,14 @@ model WorkOrder {
   laborCents      Int?     @map("labor_cents")
   partsCents      Int?     @map("parts_cents")
   
+  // Payment (Stripe)
+  paymentStatus     PaymentStatus @default(PENDING) @map("payment_status")
+  stripePaymentIntentId String? @map("stripe_payment_intent_id")
+  platformFeeCents  Int?     @map("platform_fee_cents")
+  providerPayoutCents Int?   @map("provider_payout_cents")
+  paidAt            DateTime? @map("paid_at")
+  payoutAt          DateTime? @map("payout_at")
+  
   // Evidence
   beforeEvidence  Json?    @map("before_evidence")
   afterEvidence   Json?    @map("after_evidence")
@@ -177,6 +191,16 @@ enum WorkOrderStatus {
   COMPLETED
   CANCELLED
   DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  PAYOUT_PENDING
+  PAYOUT_COMPLETED
+  REFUNDED
+  FAILED
 }
 
 // Work Order Events (audit trail)
