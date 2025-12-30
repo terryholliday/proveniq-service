@@ -21,15 +21,14 @@ const RegisterProviderSchema = z.object({
   minimum_fee_cents: z.number().int().optional(),
 });
 
-import { requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
+import { isAdminActor, requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
 
 export async function POST(req: NextRequest) {
-  const actor = await requireFirebaseActor(req);
-  if (!actor.success) {
-    return NextResponse.json({ error: actor.error }, { status: 401 });
-  }
-
   try {
+    const actor = await requireFirebaseActor(req);
+    if (!isAdminActor(actor)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await req.json();
     const input = RegisterProviderSchema.parse(body);
 
@@ -84,6 +83,9 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation failed", details: e.issues }, { status: 400 });
+    }
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
     }
     console.error("Provider registration error:", e);
     return NextResponse.json({ error: "Failed to register provider" }, { status: 500 });

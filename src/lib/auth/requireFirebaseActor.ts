@@ -15,6 +15,10 @@ export type FirebaseActor = {
   claims: Record<string, unknown>;
 };
 
+export function isAdminActor(actor: FirebaseActor): boolean {
+  return actor.claims?.role === "admin";
+}
+
 function getBearerToken(req: Request): string | null {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h) return null;

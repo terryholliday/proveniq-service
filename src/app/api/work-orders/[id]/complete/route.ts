@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/db";
 import { z } from "zod";
+import { requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
 
 const CompleteWorkOrderSchema = z.object({
   provider_id: z.string(),
@@ -15,6 +16,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> } // Next.js 15 async params
 ) {
   try {
+    const actor = await requireFirebaseActor(req);
     const { id } = await params;
     const body = await req.json();
     const input = CompleteWorkOrderSchema.parse(body);
@@ -25,6 +27,9 @@ export async function POST(
 
     if (!workOrder) {
       return NextResponse.json({ error: "Work order not found" }, { status: 404 });
+    }
+    if (workOrder.requestorId !== actor.firebase_uid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (workOrder.status === "COMPLETED") {
@@ -80,6 +85,9 @@ export async function POST(
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    }
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
     }
     return NextResponse.json({ error: "Failed to complete work order" }, { status: 500 });
   }
