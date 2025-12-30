@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { z } from "zod";
 import prisma from "@/lib/db";
+import { requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const actor = await requireFirebaseActor(req);
     const { id } = await params;
 
     const workOrder = await prisma.workOrder.findUnique({
@@ -31,6 +33,9 @@ export async function GET(
 
     if (!workOrder) {
       return NextResponse.json({ error: "Work order not found" }, { status: 404 });
+    }
+    if (workOrder.requestorId !== actor.firebase_uid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json({
@@ -103,6 +108,9 @@ export async function GET(
       updated_at: workOrder.updatedAt.toISOString(),
     });
   } catch (e: any) {
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
     console.error("Get work order error:", e);
     return NextResponse.json({ error: "Failed to get work order" }, { status: 500 });
   }
@@ -124,6 +132,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const actor = await requireFirebaseActor(req);
     const { id } = await params;
     const body = await req.json();
     const input = UpdateWorkOrderSchema.parse(body);
@@ -131,6 +140,9 @@ export async function PATCH(
     const workOrder = await prisma.workOrder.findUnique({ where: { id } });
     if (!workOrder) {
       return NextResponse.json({ error: "Work order not found" }, { status: 404 });
+    }
+    if (workOrder.requestorId !== actor.firebase_uid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const updateData: any = {};
@@ -193,6 +205,9 @@ export async function PATCH(
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation failed", details: e.issues }, { status: 400 });
+    }
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
     }
     console.error("Update work order error:", e);
     return NextResponse.json({ error: "Failed to update work order" }, { status: 500 });

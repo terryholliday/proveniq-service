@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/db";
+import { isAdminActor, requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-12-18.acacia",
@@ -13,6 +14,10 @@ const PLATFORM_FEE_PERCENT = 15; // 15% platform fee
  */
 export async function POST(req: NextRequest) {
   try {
+    const actor = await requireFirebaseActor(req);
+    if (!isAdminActor(actor)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const body = await req.json();
     const { work_order_id, customer_id } = body;
 
@@ -122,6 +127,9 @@ export async function POST(req: NextRequest) {
     }, { status: 201 });
 
   } catch (error: any) {
+    if (error?.status === 401) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("[Stripe] Create payment intent error:", error);
     return NextResponse.json({ 
       error: "Failed to create payment intent",
@@ -135,6 +143,10 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
+    const actor = await requireFirebaseActor(req);
+    if (!isAdminActor(actor)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const workOrderId = searchParams.get("work_order_id");
 
@@ -184,6 +196,9 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
+    if (error?.status === 401) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("[Stripe] Get payment status error:", error);
     return NextResponse.json({ 
       error: "Failed to get payment status",

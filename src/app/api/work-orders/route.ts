@@ -40,11 +40,8 @@ function generateWorkOrderNumber(): string {
 }
 
 export async function POST(req: NextRequest) {
-  const actor = await requireFirebaseActor(req);
-  if (!actor.success) {
-    return NextResponse.json({ error: actor.error }, { status: 401 });
-  }
   try {
+    const actor = await requireFirebaseActor(req);
     const body = await req.json();
     const input = CreateWorkOrderSchema.parse(body);
 
@@ -74,7 +71,7 @@ export async function POST(req: NextRequest) {
       data: {
         workOrderNumber: generateWorkOrderNumber(),
         requestorType: input.requestor_type,
-        requestorId: input.requestor_id,
+        requestorId: actor.firebase_uid,
         requestorRef: input.requestor_ref,
         assetId: input.asset_id,
         assetType: input.asset_type,
@@ -102,7 +99,7 @@ export async function POST(req: NextRequest) {
         workOrderId: workOrder.id,
         eventType: "CREATED",
         description: "Work order created",
-        actorId: input.requestor_id,
+        actorId: actor.firebase_uid,
         actorType: "requestor",
         payload: { service_domain: input.service_domain, service_type: input.service_type },
       },
@@ -159,7 +156,7 @@ export async function POST(req: NextRequest) {
         action: "WORK_ORDER_CREATED",
         resourceType: "work_order",
         resourceId: workOrder.id,
-        actorId: input.requestor_id,
+        actorId: actor.firebase_uid,
         details: {
           work_order_number: workOrder.workOrderNumber,
           service_domain: input.service_domain,
@@ -182,31 +179,25 @@ export async function POST(req: NextRequest) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation failed", details: e.issues }, { status: 400 });
     }
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
     console.error("Work order creation error:", e);
     return NextResponse.json({ error: "Failed to create work order" }, { status: 500 });
   }
 }
 
 export async function GET(req: NextRequest) {
-  const actor = await requireFirebaseActor(req);
-  if (!actor.success) {
-    return NextResponse.json({ error: actor.error }, { status: 401 });
-  }
   try {
+    const actor = await requireFirebaseActor(req);
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
-    const providerId = searchParams.get("provider_id");
-    const requestorId = searchParams.get("requestor_id");
     const assetId = searchParams.get("asset_id");
 
     const where: any = {};
     if (status) where.status = status;
-    if (requestorId) where.requestorId = requestorId;
+    where.requestorId = actor.firebase_uid;
     if (assetId) where.assetId = assetId;
-    if (providerId) {
-      const provider = await prisma.provider.findFirst({ where: { providerId } });
-      if (provider) where.providerId = provider.id;
-    }
 
     const workOrders = await prisma.workOrder.findMany({
       where,
@@ -236,6 +227,9 @@ export async function GET(req: NextRequest) {
       total: workOrders.length,
     });
   } catch (e: any) {
+    if (e?.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
     console.error("List work orders error:", e);
     return NextResponse.json({ error: "Failed to list work orders" }, { status: 500 });
   }
