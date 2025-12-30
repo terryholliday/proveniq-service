@@ -21,7 +21,14 @@ const RegisterProviderSchema = z.object({
   minimum_fee_cents: z.number().int().optional(),
 });
 
+import { requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
+
 export async function POST(req: NextRequest) {
+  const actor = await requireFirebaseActor(req);
+  if (!actor.success) {
+    return NextResponse.json({ error: actor.error }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const input = RegisterProviderSchema.parse(body);

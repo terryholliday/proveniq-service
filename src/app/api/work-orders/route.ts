@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/db";
 import { validateProviderLicense } from "@/logic/licenseCheck";
 import { coreClient } from "@/lib/core-client";
+import { requireFirebaseActor } from "@/lib/auth/requireFirebaseActor";
 
 const CreateWorkOrderSchema = z.object({
   requestor_type: z.string(), // properties, home, ops
@@ -39,6 +40,10 @@ function generateWorkOrderNumber(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const actor = await requireFirebaseActor(req);
+  if (!actor.success) {
+    return NextResponse.json({ error: actor.error }, { status: 401 });
+  }
   try {
     const body = await req.json();
     const input = CreateWorkOrderSchema.parse(body);
@@ -183,6 +188,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const actor = await requireFirebaseActor(req);
+  if (!actor.success) {
+    return NextResponse.json({ error: actor.error }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");

@@ -7,6 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// IDENTITY SPINE (Golden Master Standard)
+// ============================================
+
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  memberships OrgMembership[]
+
+  @@map("orgs")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  firebaseUid String   @unique @map("firebase_uid")
+  email       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  memberships OrgMembership[]
+
+  @@map("users")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  READONLY
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId])
+  @@map("org_memberships")
+}
+
+// ============================================
+// SERVICE DOMAIN MODELS
+// ============================================
+
 // Service Provider / Vendor
 model Provider {
   id              String   @id @default(uuid())
